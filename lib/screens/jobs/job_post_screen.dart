@@ -58,7 +58,7 @@ class _JobPostScreenState extends State<JobPostScreen> {
     try {
       var dio = Dio();
       var response = await dio.get(
-        'https://service-899a.onrender.com/api/categories/type/Job',
+        'https://servicebackend-kd4t.onrender.com/api/categories/type/Job',
       );
 
       if (response.statusCode == 200) {
@@ -213,7 +213,7 @@ class _JobPostScreenState extends State<JobPostScreen> {
     try {
       var dio = Dio();
       var response = await dio.post(
-        'https://service-899a.onrender.com/api/jobs',
+        'https://servicebackend-kd4t.onrender.com/api/jobs',
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -471,33 +471,76 @@ class _JobPostScreenState extends State<JobPostScreen> {
                         activeColor: Theme.of(context).primaryColor,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      if (_isCompanyPost &&
-                          (_companyId == null || _companyId!.isEmpty))
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(top: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Colors.orange.withOpacity(0.3),
-                            ),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                color: Colors.orange,
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'You need to set up your company profile first',
-                                  style: TextStyle(color: Colors.orange),
+                      if (_isCompanyPost)
+                        Consumer<AuthProvider>(
+                          builder: (context, authProvider, child) {
+                            final userData = authProvider.userData;
+                            final hasCompany = userData != null && 
+                                              userData['company'] != null && 
+                                              userData['company']['_id'] != null;
+
+                            if (hasCompany) {
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(top: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.green.withOpacity(0.3),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.business,
+                                      color: Colors.green,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Posting as ${userData!['company']['name']}',
+                                        style: const TextStyle(color: Colors.green),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            } else {
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(top: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.orange.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.orange,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'You need to set up your company profile first',
+                                        style: const TextStyle(color: Colors.orange),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pushNamed(context, '/company-info');
+                                      },
+                                      child: const Text('Add Company'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          },
                         ),
                     ],
                   ),

@@ -123,7 +123,7 @@ class _ServiceSearchScreenState extends State<ServiceSearchScreen> {
 
       var dio = Dio();
       var response = await dio.request(
-        'https://service-899a.onrender.com/api/services',
+        'https://servicebackend-kd4t.onrender.com/api/services',
         options: Options(method: 'GET', headers: headers),
       );
 

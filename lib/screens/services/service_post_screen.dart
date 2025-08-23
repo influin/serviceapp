@@ -56,10 +56,11 @@ class _ServicePostScreenState extends State<ServicePostScreen> {
   Future<void> _fetchCompanyId() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final userData = authProvider.userData;
-
+  
     if (userData != null && userData['company'] != null) {
       setState(() {
         _companyId = userData['company']['_id'];
+        _selectedCompanyId = userData['company']['_id'];  // Add this line
       });
     }
   }
@@ -84,7 +85,7 @@ class _ServicePostScreenState extends State<ServicePostScreen> {
       }
 
       var response = await Dio().get(
-        'https://service-899a.onrender.com/api/companies/my-companies',
+        'https://servicebackend-kd4t.onrender.com/api/companies/my-companies',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
@@ -117,7 +118,7 @@ class _ServicePostScreenState extends State<ServicePostScreen> {
 
       var dio = Dio();
       var response = await dio.get(
-        'https://service-899a.onrender.com/api/categories/type/Service',
+        'https://servicebackend-kd4t.onrender.com/api/categories/type/Service',
       );
 
       if (response.statusCode == 200) {
@@ -247,14 +248,9 @@ class _ServicePostScreenState extends State<ServicePostScreen> {
 
     // Check if company post but no company info
     if (_isCompanyPost) {
-      if (_userCompanies.isEmpty) {
-        _showCompanyInfoDialog();
-        return;
-      }
-
       if (_selectedCompanyId == null || _selectedCompanyId!.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a company')),
+          const SnackBar(content: Text('Please set up your company profile first')),
         );
         return;
       }
@@ -298,7 +294,7 @@ class _ServicePostScreenState extends State<ServicePostScreen> {
     try {
       var dio = Dio();
       var response = await dio.post(
-        'https://service-899a.onrender.com/api/services',
+        'https://servicebackend-kd4t.onrender.com/api/services',
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -435,48 +431,82 @@ class _ServicePostScreenState extends State<ServicePostScreen> {
                         onChanged: (value) {
                           setState(() {
                             _isCompanyPost = value;
-                            if (value) {
-                              _fetchUserCompanies();
-                            } else {
-                              _selectedCompanyId = null;
-                            }
                           });
                         },
                         activeColor: Theme.of(context).primaryColor,
                         contentPadding: EdgeInsets.zero,
                       ),
+                      if (_isCompanyPost)
+                        Consumer<AuthProvider>(
+                          builder: (context, authProvider, child) {
+                            final userData = authProvider.userData;
+                            final hasCompany = userData != null && 
+                                              userData['company'] != null && 
+                                              userData['company']['_id'] != null;
 
-                      // Hidden company selection if posting as company
-                      if (_isCompanyPost) ...[  
-                        const SizedBox(height: 0),  // Hidden with zero height
-                        if (_isLoadingCompanies)
-                          const SizedBox()  // Empty widget instead of loading indicator
-                        else if (_userCompanies.isEmpty)
-                          const SizedBox()  // Empty widget instead of warning
-                        else
-                          Opacity(
-                            opacity: 0,  // Make it invisible
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedCompanyId,
-                              decoration: theme.dropdownDecoration(
-                                labelText: 'Select Company',
-                                prefixIcon: Icons.business,
-                                context: context,
-                              ),
-                              items: _userCompanies
-                                  .map((company) => DropdownMenuItem<String>(
-                                        value: company['_id'] as String,
-                                        child: Text(company['name']),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedCompanyId = value;
-                                });
-                              },
-                            ),
-                          ),
-                      ],
+                            if (hasCompany) {
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(top: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.green.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.business,
+                                      color: Colors.green,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Posting as ${userData!['company']['name']}',
+                                        style: const TextStyle(color: Colors.green),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            } else {
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(top: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.orange.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.orange,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'You need to set up your company profile first',
+                                        style: const TextStyle(color: Colors.orange),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pushNamed(context, '/company-info');
+                                      },
+                                      child: const Text('Add Company'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          },
+                        ),
                     ],
                   ),
                 ),

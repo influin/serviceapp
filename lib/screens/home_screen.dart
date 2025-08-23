@@ -52,33 +52,25 @@ class HomeScreen extends StatelessWidget {
     final userData = authProvider.userData;
     var dio = Dio();
 
-    // Check if user has company information
-    if ((serviceType == 'Service Post' || serviceType == 'Job Post') &&
-        (userData == null ||
-            userData['company'] == null &&
-                userData['skippedCompanyInfo'] != true)) {
-      // Store the intended service type before redirecting
-      final result = await Navigator.pushNamed(context, '/company-info');
-
-      // If company info was successfully added and the context is still valid
-      if (result == true && context.mounted) {
-        // Refresh user data
-        await authProvider.refreshUserData();
-        // Retry the operation with updated user data
-        _handleCardTap(context, serviceType);
-      }
-      return;
-    }
-
-    // Job Post is free
+    // Handle Job Post (free service)
     if (serviceType == 'Job Post') {
+      if (userData != null &&
+          userData['company'] == null &&
+          userData['skippedCompanyInfo'] != true) {
+        final result = await Navigator.pushNamed(context, '/company-info');
+        if (result == true && context.mounted) {
+          await authProvider.refreshUserData();
+          _handleCardTap(context, serviceType);
+        }
+        return;
+      }
       Navigator.pushNamed(context, '/job-post');
       return;
     }
 
     try {
       final response = await dio.request(
-        'https://service-899a.onrender.com/api/subscriptions/my-subscriptions',
+        'https://servicebackend-kd4t.onrender.com/api/subscriptions/my-subscriptions',
         options: Options(
           method: 'GET',
           headers: {'Authorization': 'Bearer $token'},
@@ -90,7 +82,7 @@ class HomeScreen extends StatelessWidget {
 
       if (response.statusCode == 200) {
         final subscriptions = response.data['data']['subscriptions'] as List;
-
+        
         hasServicePostSubscription = subscriptions.any(
           (sub) =>
               sub['type'] == 'SERVICE_POST' &&
@@ -100,49 +92,29 @@ class HomeScreen extends StatelessWidget {
         hasCurrentServiceSubscription = subscriptions.any(
           (sub) =>
               sub['type'] == serviceType.toUpperCase().replaceAll(' ', '_') &&
-              DateTime.parse(sub['endDate']).isAfter(DateTime.now()),
+              DateTime.parse(sub['endDate']).isAfter(DateTime.now()),  // Add this line
         );
       }
 
-      // If serviceType is Service Post and user has already subscribed, allow
+      // Handle Service Post
       if (serviceType == 'Service Post') {
+        if (userData != null &&
+            userData['company'] == null &&
+            userData['skippedCompanyInfo'] != true) {
+          final result = await Navigator.pushNamed(context, '/company-info');
+          if (result == true && context.mounted) {
+            await authProvider.refreshUserData();
+            _handleCardTap(context, serviceType);
+          }
+          return;
+        }
         Navigator.pushNamed(context, '/service-post');
         return;
       }
 
-      // If Service Post is subscribed, allow access to Service Search and Job Search
+      // Handle Service Search and Job Search
       if ((serviceType == 'Service Search' || serviceType == 'Job Search') &&
-          hasServicePostSubscription) {
-        Navigator.pushNamed(
-          context,
-          '/${serviceType.toLowerCase().replaceAll(' ', '-')}',
-        );
-        return;
-      }
-
-      // Check if this is the first Service Post use (free only for Service Post)
-      if (serviceType == 'Service Post') {
-        final usageResponse = await dio.get(
-          'https://service-899a.onrender.com/api/usage/check-first-use?type=SERVICE_POST',
-          options: Options(headers: {'Authorization': 'Bearer $token'}),
-        );
-
-        if (usageResponse.statusCode == 200 &&
-            usageResponse.data['isFirstTime'] == true) {
-          // Record first use
-          await dio.post(
-            'https://service-899a.onrender.com/api/usage/record',
-            data: {'type': 'SERVICE_POST'},
-            options: Options(headers: {'Authorization': 'Bearer $token'}),
-          );
-
-          Navigator.pushNamed(context, '/service-post');
-          return;
-        }
-      }
-
-      // If user has current subscription to service, allow
-      if (hasCurrentServiceSubscription) {
+          (hasServicePostSubscription || hasCurrentServiceSubscription)) {
         Navigator.pushNamed(
           context,
           '/${serviceType.toLowerCase().replaceAll(' ', '-')}',
@@ -155,7 +127,7 @@ class HomeScreen extends StatelessWidget {
 
     if (!context.mounted) return;
 
-    // Show subscription sheet
+    // Show subscription sheet for users without required subscription
     switch (serviceType) {
       case 'Service Search':
         _showSubscriptionSheet(
@@ -209,6 +181,8 @@ class HomeScreen extends StatelessWidget {
     String route,
   ) {
     final theme = AppTheme.style;
+    final isDesktop = MediaQuery.of(context).size.width >= 1024;
+
     return Container(
       decoration: theme.cardDecoration,
       child: Material(
@@ -220,16 +194,28 @@ class HomeScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isDesktop ? 24 : 16),
                 decoration: theme.iconBoxDecoration(context),
                 child: Icon(
                   icon,
-                  size: ThemeStyle.iconSize,
+                  size:
+                      isDesktop
+                          ? ThemeStyle.iconSize * 1.5
+                          : ThemeStyle.iconSize,
                   color: Theme.of(context).primaryColor,
                 ),
               ),
               const SizedBox(height: 12),
-              Text(title, style: theme.titleStyle, textAlign: TextAlign.center),
+              Text(
+                title,
+                style: theme.titleStyle.copyWith(
+                  fontSize:
+                      isDesktop
+                          ? theme.titleStyle.fontSize! * 1.2
+                          : theme.titleStyle.fontSize,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -239,7 +225,16 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userData = authProvider.userData;
+
+    // Debug prints for user data and company status
+    print('User Data: $userData');
+    print('Company Info: ${userData?['company']}');
+    print('Skipped Company Info: ${userData?['skippedCompanyInfo']}');
+
     final theme = AppTheme.style;
+    final isDesktop = MediaQuery.of(context).size.width >= 1024;
 
     return theme.buildPageBackground(
       child: SafeArea(
@@ -256,7 +251,7 @@ class HomeScreen extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.black,
                       fontWeight: FontWeight.bold,
-                      fontSize: 20,
+                      fontSize: isDesktop ? 24 : 20,
                     ),
                   ),
                   TextSpan(
@@ -264,7 +259,7 @@ class HomeScreen extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.red,
                       fontWeight: FontWeight.bold,
-                      fontSize: 20,
+                      fontSize: isDesktop ? 24 : 20,
                     ),
                   ),
                 ],
@@ -273,72 +268,89 @@ class HomeScreen extends StatelessWidget {
             centerTitle: true,
           ),
           drawer: const AppDrawer(),
-          body: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(ThemeStyle.defaultPadding),
-                  child: RichText(
-                    text: TextSpan(
+          body: Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal:
+                  isDesktop
+                      ? (MediaQuery.of(context).size.width - 1200) / 2
+                      : 0,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(
+                      isDesktop ? 32.0 : ThemeStyle.defaultPadding,
+                    ),
+                    child: RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Welcome to Serviceinfo',
+                            style: TextStyle(
+                              fontSize: isDesktop ? 32 : 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'tek',
+                            style: TextStyle(
+                              fontSize: isDesktop ? 32 : 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal:
+                          isDesktop ? 32.0 : ThemeStyle.defaultPadding - 4,
+                    ),
+                    child: GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: isDesktop ? 4 : 2,
+                      crossAxisSpacing: isDesktop ? 32 : 20,
+                      mainAxisSpacing: isDesktop ? 32 : 20,
+                      childAspectRatio: isDesktop ? 1.2 : 0.9,
                       children: [
-                        TextSpan(
-                          text: 'Welcome to Serviceinfo',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
+                        _buildCard(
+                          context,
+                          'Service Search',
+                          Icons.search,
+                          '/service-search',
                         ),
-                        TextSpan(
-                          text: 'tek',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
+                        _buildCard(
+                          context,
+                          'Service Post',
+                          Icons.post_add,
+                          '/service-post',
+                        ),
+                        _buildCard(
+                          context,
+                          'Job Search',
+                          Icons.search_outlined,
+                          '/job-search',
+                        ),
+                        _buildCard(
+                          context,
+                          'Job Post',
+                          Icons.work,
+                          '/job-post',
                         ),
                       ],
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: ThemeStyle.defaultPadding - 4,
-                  ),
-                  child: GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 20,
-                    childAspectRatio: 0.9,
-                    children: [
-                      _buildCard(
-                        context,
-                        'Service Search',
-                        Icons.search,
-                        '/service-search',
-                      ),
-                      _buildCard(
-                        context,
-                        'Service Post',
-                        Icons.post_add,
-                        '/service-post',
-                      ),
-                      _buildCard(
-                        context,
-                        'Job Search',
-                        Icons.search_outlined,
-                        '/job-search',
-                      ),
-                      _buildCard(context, 'Job Post', Icons.work, '/job-post'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const GovernmentJobsSection(),
-              ],
+                  const SizedBox(height: 24),
+                  const GovernmentJobsSection(),
+                ],
+              ),
             ),
           ),
         ),

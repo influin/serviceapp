@@ -33,13 +33,14 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final savedLocale = prefs.getString('language_code') ?? 'en';
 
+  // Initialize auth provider and wait for auto login
   final authProvider = AuthProvider();
   await authProvider.tryAutoLogin();
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider.value(value: authProvider), // Use the same instance
         ChangeNotifierProvider(
           create: (_) => LocaleProvider()..setLocale(Locale(savedLocale)),
         ),

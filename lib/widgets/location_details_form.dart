@@ -11,6 +11,7 @@ class LocationDetailsForm extends StatefulWidget {
   final TextEditingController pincodeController;
   final TextEditingController countryController;
   final bool showTitle;
+  final bool isDesktop; // Add this line
 
   const LocationDetailsForm({
     Key? key,
@@ -20,6 +21,7 @@ class LocationDetailsForm extends StatefulWidget {
     required this.pincodeController,
     required this.countryController,
     this.showTitle = true,
+    this.isDesktop = false, // Add this line
   }) : super(key: key);
 
   @override

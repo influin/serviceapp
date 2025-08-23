@@ -12,7 +12,8 @@ import '../../widgets/service_subscription_sheet.dart';
 class EditServicePostScreen extends StatefulWidget {
   final Map<String, dynamic> service;
 
-  const EditServicePostScreen({Key? key, required this.service}) : super(key: key);
+  const EditServicePostScreen({Key? key, required this.service})
+    : super(key: key);
 
   @override
   State<EditServicePostScreen> createState() => _EditServicePostScreenState();
@@ -43,7 +44,7 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
     super.initState();
     _serviceId = widget.service['_id'];
     _isCompanyPost = widget.service['isCompanyPost'] ?? false;
-    
+
     // Initialize location fields
     final location = widget.service['location'] ?? {};
     _districtController.text = location['district'] ?? '';
@@ -51,7 +52,7 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
     _cityController.text = location['city'] ?? '';
     _pincodeController.text = location['pincode'] ?? '';
     _countryController.text = location['country'] ?? '';
-    
+
     // Fetch categories and other data
     _fetchCategories();
     _fetchCompanyId();
@@ -66,7 +67,7 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
 
       var dio = Dio();
       var response = await dio.get(
-        'https://service-899a.onrender.com/api/services/${_serviceId}',
+        'https://servicebackend-kd4t.onrender.com/api/services/${_serviceId}',
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -77,25 +78,26 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
 
       if (response.statusCode == 200) {
         final serviceData = response.data['data']['service'];
-        
+
         // Set company post status
         setState(() {
           _isCompanyPost = serviceData['isCompanyPost'] ?? false;
-          
+
           // Set selected company ID if it's a company post
           if (_isCompanyPost && serviceData['company'] != null) {
             _selectedCompanyId = serviceData['company']['_id'];
           }
-          
+
           // Set selected categories with prices
           if (serviceData['categoryPrices'] != null) {
-            _selectedCategories = (serviceData['categoryPrices'] as List).map((catPrice) {
-              return {
-                'id': catPrice['category']['_id'],
-                'name': catPrice['category']['name'],
-                'price': catPrice['price'],
-              };
-            }).toList();
+            _selectedCategories =
+                (serviceData['categoryPrices'] as List).map((catPrice) {
+                  return {
+                    'id': catPrice['category']['_id'],
+                    'name': catPrice['category']['name'],
+                    'price': catPrice['price'],
+                  };
+                }).toList();
           }
         });
       }
@@ -115,7 +117,7 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
         _selectedCompanyId = userData['company']['_id'];
       });
     }
-    
+
     _fetchUserCompanies();
   }
 
@@ -127,19 +129,22 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
 
       var dio = Dio();
       var response = await dio.get(
-        'https://service-899a.onrender.com/api/companies/user',
+        'https://servicebackend-kd4t.onrender.com/api/companies/user',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode == 200) {
         var data = response.data['data']['companies'] as List;
         setState(() {
-          _userCompanies = data
-              .map((company) => {
-                    'id': company['_id'],
-                    'name': company['name'],
-                  })
-              .toList();
+          _userCompanies =
+              data
+                  .map(
+                    (company) => {
+                      'id': company['_id'],
+                      'name': company['name'],
+                    },
+                  )
+                  .toList();
           _isLoadingCompanies = false;
         });
       }
@@ -153,15 +158,16 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
     try {
       var dio = Dio();
       var response = await dio.get(
-        'https://service-899a.onrender.com/api/categories/type/Service',
+        'https://servicebackend-kd4t.onrender.com/api/categories/type/Service',
       );
 
       if (response.statusCode == 200) {
         var data = response.data['data']['categories'] as List;
         setState(() {
-          _categories = data
-              .map((cat) => {'id': cat['_id'], 'name': cat['name']})
-              .toList();
+          _categories =
+              data
+                  .map((cat) => {'id': cat['_id'], 'name': cat['name']})
+                  .toList();
           _filteredCategories = List.from(_categories);
         });
       } else {
@@ -177,7 +183,8 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
     final userData = authProvider.userData;
 
     setState(() {
-      _isPaidSubscription = userData != null &&
+      _isPaidSubscription =
+          userData != null &&
           userData['subscription'] != null &&
           userData['subscription']['status'] == 'active' &&
           userData['subscription']['type'] == 'SERVICE_POST';
@@ -192,7 +199,9 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
 
   void _updateCategoryPrice(String categoryId, double price) {
     setState(() {
-      final index = _selectedCategories.indexWhere((cat) => cat['id'] == categoryId);
+      final index = _selectedCategories.indexWhere(
+        (cat) => cat['id'] == categoryId,
+      );
       if (index != -1) {
         _selectedCategories[index]['price'] = price;
       }
@@ -202,7 +211,8 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
   void _showCompanyInfoDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder:
+          (ctx) => AlertDialog(
             title: const Text('Company Information Required'),
             content: const Text(
               'You need to add company information before posting a company service.',
@@ -314,7 +324,7 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
     try {
       var dio = Dio();
       var response = await dio.put(
-        'https://service-899a.onrender.com/api/services/${_serviceId}',
+        'https://servicebackend-kd4t.onrender.com/api/services/${_serviceId}',
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -360,7 +370,10 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
           icon: const Icon(Icons.arrow_back, color: ThemeStyle.iconColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Edit Service Post', style: theme.appBarTitleStyle(context)),
+        title: Text(
+          'Edit Service Post',
+          style: theme.appBarTitleStyle(context),
+        ),
         centerTitle: true,
       ),
       body: Container(
@@ -400,9 +413,11 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
                               ),
                               suggestionsCallback: (pattern) {
                                 return _filteredCategories
-                                    .where((category) => category['name']
-                                        .toLowerCase()
-                                        .contains(pattern.toLowerCase()))
+                                    .where(
+                                      (category) => category['name']
+                                          .toLowerCase()
+                                          .contains(pattern.toLowerCase()),
+                                    )
                                     .map((e) => e['name'] as String)
                                     .toList();
                               },
@@ -425,14 +440,17 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
                                 if (alreadySelected) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Category already selected'),
+                                      content: Text(
+                                        'Category already selected',
+                                      ),
                                     ),
                                   );
                                   return;
                                 }
 
                                 // Check max categories limit
-                                if (_selectedCategories.length >= maxCategories) {
+                                if (_selectedCategories.length >=
+                                    maxCategories) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
@@ -450,7 +468,9 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
                                     'price': 0.0, // Default price
                                   });
                                 });
-                              }, displayAllSuggestionWhenTap: true, isMultiSelectDropdown: false,
+                              },
+                              displayAllSuggestionWhenTap: true,
+                              isMultiSelectDropdown: false,
                             ),
                           ),
                         ],
@@ -473,7 +493,8 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
                               SizedBox(
                                 width: 100,
                                 child: TextFormField(
-                                  initialValue: category['price']?.toString() ?? '',
+                                  initialValue:
+                                      category['price']?.toString() ?? '',
                                   decoration: const InputDecoration(
                                     labelText: 'Price',
                                     prefixText: '₹',
@@ -525,7 +546,7 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
                           });
                         },
                       ),
-                      if (_isCompanyPost) ...[  
+                      if (_isCompanyPost) ...[
                         const SizedBox(height: 16),
                         if (_isLoadingCompanies)
                           const Center(child: CircularProgressIndicator())
@@ -537,19 +558,25 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
                             style: theme.primaryButtonStyle(context),
                           )
                         else
-                          DropdownButtonFormField<String>(  // This expects String values
+                          DropdownButtonFormField<String>(
+                            // This expects String values
                             value: _selectedCompanyId,
                             decoration: theme.dropdownDecoration(
                               labelText: 'Select Company',
                               prefixIcon: Icons.business,
                               context: context,
                             ),
-                            items: _userCompanies
-                                .map((company) => DropdownMenuItem<String>(
-                                      value: company['id'] as String,  // Explicitly cast to String
-                                      child: Text(company['name']),
-                                    ))
-                                .toList(),
+                            items:
+                                _userCompanies
+                                    .map(
+                                      (company) => DropdownMenuItem<String>(
+                                        value:
+                                            company['id']
+                                                as String, // Explicitly cast to String
+                                        child: Text(company['name']),
+                                      ),
+                                    )
+                                    .toList(),
                             onChanged: (value) {
                               setState(() {
                                 _selectedCompanyId = value;
@@ -593,16 +620,17 @@ class _EditServicePostScreenState extends State<EditServicePostScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _updateService,
                   style: theme.primaryButtonStyle(context),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Update Service'),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Text('Update Service'),
                 ),
               ],
             ),

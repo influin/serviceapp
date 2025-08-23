@@ -49,7 +49,7 @@ class _MyServicePostsScreenState extends State<MyServicePostsScreen> {
       final token = authProvider.token;
 
       var response = await Dio().get(
-        'https://service-899a.onrender.com/api/services/my-services',
+        'https://servicebackend-kd4t.onrender.com/api/services/my-services',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
@@ -104,7 +104,7 @@ class _MyServicePostsScreenState extends State<MyServicePostsScreen> {
       final token = authProvider.token;
 
       final response = await Dio().delete(
-        'https://service-899a.onrender.com/api/services/$serviceId',
+        'https://servicebackend-kd4t.onrender.com/api/services/$serviceId',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 

@@ -30,7 +30,7 @@ class _MySubscriptionsScreenState extends State<MySubscriptionsScreen> {
 
       var dio = Dio();
       var response = await dio.request(
-        'https://service-899a.onrender.com/api/subscriptions/my-subscriptions',
+        'https://servicebackend-kd4t.onrender.com/api/subscriptions/my-subscriptions',
         options: Options(
           method: 'GET',
           headers: {'Authorization': 'Bearer $token'},

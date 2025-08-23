@@ -29,20 +29,9 @@ class _GovernmentJobsSectionState extends State<GovernmentJobsSection> {
 
   Future<void> fetchJobs() async {
     try {
-      var headers = {'Content-Type': 'text/plain'};
-      var data = '''{
-        "jobTitle": "Senior Software Engineer",
-        "organizationName": "Ministry of Technology",
-        "lastDateToApply": "2024-03-31",
-        "applyLink": "https://careers.gov.example/jobs/123",
-        "jobType": "Govt Jobs"
-      }''';
-
       var dio = Dio();
-      var response = await dio.request(
-        'https://service-899a.onrender.com/api/government-jobs',
-        options: Options(method: 'GET', headers: headers),
-        data: data,
+      var response = await dio.get(
+        'https://servicebackend-kd4t.onrender.com/api/government-jobs',
       );
 
       if (response.statusCode == 200) {

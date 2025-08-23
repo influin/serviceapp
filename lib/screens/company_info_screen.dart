@@ -51,19 +51,19 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
       }
     });
   }
-  
+
   // Add this method to prefill the form with company data
   void _prefillCompanyData(dynamic company) {
     setState(() {
       _isLoadingCompanyData = false;
       _companyId = company['_id'];
       _hasCompany = true;
-  
+
       _nameController.text = company['name'] ?? '';
       _websiteController.text = company['website'] ?? '';
       _aboutController.text = company['about'] ?? '';
       _logoController.text = company['logo'] ?? '';
-  
+
       // Prefill location data
       if (company['location'] != null) {
         _countryController.text = company['location']['country'] ?? '';
@@ -93,7 +93,7 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
 
       var dio = Dio();
       final response = await dio.get(
-        'https://service-899a.onrender.com/api/companies/my-companies',
+        'https://servicebackend-kd4t.onrender.com/api/companies/my-companies',
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
@@ -118,7 +118,8 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
                 _countryController.text = company['location']['country'] ?? '';
                 _stateController.text = company['location']['state'] ?? '';
                 _cityController.text = company['location']['city'] ?? '';
-                _districtController.text = company['location']['district'] ?? '';
+                _districtController.text =
+                    company['location']['district'] ?? '';
                 _pincodeController.text = company['location']['pincode'] ?? '';
               }
             });
@@ -138,9 +139,15 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
   Widget build(BuildContext context) {
     final theme = AppTheme.style;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isDesktop = MediaQuery.of(context).size.width > 768;
+    final formWidth = isDesktop ? 800.0 : double.infinity;
+    final horizontalPadding =
+        isDesktop
+            ? (MediaQuery.of(context).size.width - formWidth) / 2
+            : ThemeStyle.defaultPadding;
 
     return WillPopScope(
-      onWillPop: () async => false, // Prevent back navigation
+      onWillPop: () async => false,
       child: theme.buildPageBackground(
         child: Scaffold(
           backgroundColor: Colors.transparent,
@@ -148,146 +155,195 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
             elevation: 0,
             backgroundColor: Colors.transparent,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: ThemeStyle.iconColor),
+              icon: Icon(
+                Icons.arrow_back,
+                color: ThemeStyle.iconColor,
+                size: isDesktop ? 28 : 24,
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
               _hasCompany ? 'Edit Company Information' : 'Company Information',
-              style: theme.appBarTitleStyle(context),
+              style: theme
+                  .appBarTitleStyle(context)
+                  .copyWith(fontSize: isDesktop ? 24 : 20),
             ),
             centerTitle: true,
             actions: [
-              // Only show skip button if skippedCompanyInfo is false or not set
-              // and user doesn't have a company yet
-              if (!_hasCompany && (authProvider.userData == null || 
-                  authProvider.userData!['skippedCompanyInfo'] != true))
+              if (!_hasCompany &&
+                  (authProvider.userData == null ||
+                      authProvider.userData!['skippedCompanyInfo'] != true))
                 TextButton(
                   onPressed: () async {
-                    // Store a flag indicating user skipped company info
                     final userData = authProvider.userData;
-  
+
                     if (userData != null) {
-                      // Create a copy of userData with the skippedCompanyInfo flag
-                      final updatedUserData = Map<String, dynamic>.from(userData);
+                      final updatedUserData = Map<String, dynamic>.from(
+                        userData,
+                      );
                       updatedUserData['skippedCompanyInfo'] = true;
-  
-                      // Update the user data in the provider
                       await authProvider.setUserData(updatedUserData);
-  
-                      // Save to SharedPreferences
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setString(
                         'user_data',
                         jsonEncode(updatedUserData),
                       );
-                      
-                      // Add this line to ensure the AuthProvider is properly updated
                       await authProvider.refreshUserData();
                     }
-  
+
                     if (mounted) {
                       Navigator.pushReplacementNamed(context, '/home');
                     }
                   },
-                  child: Text('Skip', style: theme.linkStyle(context)),
+                  child: Text(
+                    'Skip',
+                    style: theme
+                        .linkStyle(context)
+                        .copyWith(fontSize: isDesktop ? 18 : 16),
+                  ),
                 ),
             ],
           ),
-          body: _isLoadingCompanyData
-              ? Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(ThemeStyle.defaultPadding),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _hasCompany 
-                              ? 'Edit your company information'
-                              : 'Please provide your company information',
-                          style: theme.titleStyle,
-                        ),
-                        const SizedBox(height: 20),
-                        theme.buildCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextFormField(
-                                controller: _nameController,
-                                decoration: theme.inputDecoration(
-                                  labelText: 'Company Name',
-                                  prefixIcon: Icons.business,
-                                  context: context,
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter company name';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _websiteController,
-                                decoration: theme.inputDecoration(
-                                  labelText: 'Website (Optional)',
-                                  prefixIcon: Icons.language,
-                                  context: context,
-                                ),
-                                keyboardType: TextInputType.url,
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _aboutController,
-                                decoration: theme.inputDecoration(
-                                  labelText: 'About Company (Optional)',
-                                  prefixIcon: Icons.description,
-                                  context: context,
-                                ),
-                                maxLines: 3,
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _logoController,
-                                decoration: theme.inputDecoration(
-                                  labelText: 'Logo URL (Optional)',
-                                  prefixIcon: Icons.image,
-                                  context: context,
-                                ),
-                                keyboardType: TextInputType.url,
-                              ),
-                            ],
+          body:
+              _isLoadingCompanyData
+                  ? Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: isDesktop ? 4 : 3,
+                    ),
+                  )
+                  : SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                      vertical: ThemeStyle.defaultPadding,
+                    ),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _hasCompany
+                                ? 'Edit your company information'
+                                : 'Please provide your company information',
+                            style: theme.titleStyle.copyWith(
+                              fontSize: isDesktop ? 28 : 20,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                        LocationDetailsForm(
-                          districtController: _districtController,
-                          stateController: _stateController,
-                          cityController: _cityController,
-                          pincodeController: _pincodeController,
-                          countryController: _countryController,
-                        ),
-                        const SizedBox(height: 30),
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _submitCompanyInfo,
-                          style: theme.primaryButtonStyle(context),
-                          child:
-                              _isLoading
-                                  ? theme.loadingIndicator()
-                                  : Text(_hasCompany ? 'Update' : 'Submit', style: theme.buttonTextStyle),
-                        ),
-                      ],
+                          SizedBox(height: isDesktop ? 30 : 20),
+                          theme.buildCard(
+                            child: Container(
+                              width: formWidth,
+                              padding: EdgeInsets.all(isDesktop ? 40 : 20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  TextFormField(
+                                    controller: _nameController,
+                                    decoration: theme
+                                        .inputDecoration(
+                                          labelText: 'Company Name',
+                                          prefixIcon: Icons.business,
+                                          context: context,
+                                        )
+                                        .copyWith(
+                                          contentPadding: EdgeInsets.all(
+                                            isDesktop ? 20 : 12,
+                                          ),
+                                        ),
+                                    style: TextStyle(
+                                      fontSize: isDesktop ? 16 : 14,
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter company name';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  SizedBox(height: isDesktop ? 24 : 16),
+                                  TextFormField(
+                                    controller: _websiteController,
+                                    decoration: theme
+                                        .inputDecoration(
+                                          labelText: 'Website (Optional)',
+                                          prefixIcon: Icons.language,
+                                          context: context,
+                                        )
+                                        .copyWith(
+                                          contentPadding: EdgeInsets.all(
+                                            isDesktop ? 20 : 12,
+                                          ),
+                                        ),
+                                    style: TextStyle(
+                                      fontSize: isDesktop ? 16 : 14,
+                                    ),
+                                    keyboardType: TextInputType.url,
+                                  ),
+                                  SizedBox(height: isDesktop ? 24 : 16),
+                                  TextFormField(
+                                    controller: _aboutController,
+                                    decoration: theme
+                                        .inputDecoration(
+                                          labelText: 'About Company (Optional)',
+                                          prefixIcon: Icons.description,
+                                          context: context,
+                                        )
+                                        .copyWith(
+                                          contentPadding: EdgeInsets.all(
+                                            isDesktop ? 20 : 12,
+                                          ),
+                                        ),
+                                    style: TextStyle(
+                                      fontSize: isDesktop ? 16 : 14,
+                                    ),
+                                    maxLines: 3,
+                                  ),
+                                  SizedBox(height: isDesktop ? 24 : 16),
+                                  LocationDetailsForm(
+                                    districtController: _districtController,
+                                    stateController: _stateController,
+                                    cityController: _cityController,
+                                    pincodeController: _pincodeController,
+                                    countryController: _countryController,
+                                    isDesktop: isDesktop,
+                                  ),
+                                  SizedBox(height: isDesktop ? 40 : 24),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: isDesktop ? 56 : 48,
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          _isLoading ? null : _submitForm,
+                                      child:
+                                          _isLoading
+                                              ? CircularProgressIndicator(
+                                                strokeWidth: isDesktop ? 3 : 2,
+                                              )
+                                              : Text(
+                                                _hasCompany
+                                                    ? 'Update'
+                                                    : 'Submit',
+                                                style: TextStyle(
+                                                  fontSize: isDesktop ? 18 : 16,
+                                                ),
+                                              ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
         ),
       ),
     );
   }
 
-  Future<void> _submitCompanyInfo() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
@@ -296,86 +352,58 @@ class _CompanyInfoScreenState extends State<CompanyInfoScreen> {
       final token = authProvider.token;
 
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Authentication error. Please login again.'),
-          ),
-        );
-        return;
+        throw Exception('No authentication token found');
       }
 
-      final Map<String, dynamic> requestData = {
-        "name": _nameController.text,
-        "location": {
-          "country": _countryController.text,
-          "state": _stateController.text,
-          "city": _cityController.text,
-          "district": _districtController.text,
-          "pincode": _pincodeController.text,
+      final dio = Dio();
+      final data = {
+        'name': _nameController.text,
+        'website': _websiteController.text,
+        'about': _aboutController.text,
+        'logo': _logoController.text,
+        'location': {
+          'country': _countryController.text,
+          'state': _stateController.text,
+          'city': _cityController.text,
+          'district': _districtController.text,
+          'pincode': _pincodeController.text,
         },
       };
 
-      // Add optional fields if they're not empty
-      if (_websiteController.text.isNotEmpty) {
-        requestData["website"] = _websiteController.text;
-      }
+      final response = await dio.post(
+        'https://servicebackend-kd4t.onrender.com/api/companies',
+        data: data,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
 
-      if (_aboutController.text.isNotEmpty) {
-        requestData["about"] = _aboutController.text;
-      }
-
-      if (_logoController.text.isNotEmpty) {
-        requestData["logo"] = _logoController.text;
-      }
-
-      var dio = Dio();
-      Response response;
-      
-      if (_hasCompany && _companyId != null) {
-        // Update existing company
-        response = await dio.patch(
-          'https://service-899a.onrender.com/api/companies/${_companyId}',
-          data: requestData,
-          options: Options(headers: {'Authorization': 'Bearer $token'}),
+      if (response.statusCode == 201 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Company information saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
         );
-      } else {
-        // Create new company
-        response = await dio.post(
-          'https://service-899a.onrender.com/api/companies',
-          data: requestData,
-          options: Options(headers: {'Authorization': 'Bearer $token'}),
-        );
-      }
-  
-      // Simplified response handling
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          // Update user data to include company info
-          await authProvider.refreshUserData();
-  
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(_hasCompany ? 'Company updated successfully' : 'Company created successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          
-          // Navigate to home screen only if this was a new company creation
-          // and not an update to an existing company
-          if (!_hasCompany) {
-            Navigator.pushReplacementNamed(context, '/home');
-          }
-        }
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        String errorMessage = 'Failed to save company information';
+
+        if (e is DioException && e.response != null) {
+          final responseData = e.response?.data;
+          if (responseData != null && responseData['message'] != null) {
+            errorMessage = responseData['message'];
+          }
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 }

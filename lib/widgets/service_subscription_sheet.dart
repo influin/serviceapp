@@ -6,6 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../screens/subscription/congratulations_screen.dart';
+import 'dart:io' show Platform;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 class ServiceSubscriptionSheet extends StatefulWidget {
   final String serviceType;
@@ -33,14 +39,73 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
   void initState() {
     super.initState();
     _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    try {
+      _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+      _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+      _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+
+      // Initialize WebView
+      late final PlatformWebViewControllerCreationParams params;
+      if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+        params = WebKitWebViewControllerCreationParams(
+          allowsInlineMediaPlayback: true,
+          mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+        );
+      } else {
+        params = const PlatformWebViewControllerCreationParams();
+      }
+
+      final WebViewController controller =
+          WebViewController.fromPlatformCreationParams(params);
+
+      controller
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0x00000000))
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onNavigationRequest: (NavigationRequest request) {
+              // Check if the URL contains payment success parameters
+              if (request.url.contains('razorpay_payment_id')) {
+                final uri = Uri.parse(request.url);
+                final paymentId = uri.queryParameters['razorpay_payment_id'];
+                final orderId = uri.queryParameters['razorpay_order_id'];
+                final signature = uri.queryParameters['razorpay_signature'];
+
+                // Handle payment success
+                _handlePaymentSuccess(
+                  PaymentSuccessResponse(
+                    paymentId ?? '',
+                    orderId ?? '',
+                    signature ?? '',
+                    'success' as Map?, // Add the required fourth parameter
+                  ),
+                );
+
+                // Close the dialog
+                Navigator.of(context).pop();
+                return NavigationDecision.prevent;
+              }
+              return NavigationDecision.navigate;
+            },
+          ),
+        );
+
+      _webViewController = controller;
+    } catch (e) {
+      print('Initialization error: $e');
+    }
   }
+
+  // Add this variable to your class
+  late final WebViewController _webViewController;
 
   @override
   void dispose() {
-    _razorpay.clear(); // Removes all listeners
+    try {
+      _razorpay.clear(); // Removes all listeners
+    } catch (e) {
+      print('Error disposing Razorpay: $e');
+    }
     super.dispose();
   }
 
@@ -66,7 +131,7 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
 
       var dio = Dio();
       var verifyResponse = await dio.request(
-        'https://service-899a.onrender.com/api/payments/verify-payment',
+        'https://servicebackend-kd4t.onrender.com/api/payments/verify-payment',
         options: Options(method: 'POST', headers: headers),
         data: data,
       );
@@ -142,7 +207,7 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
 
       var dio = Dio();
       var response = await dio.request(
-        'https://service-899a.onrender.com/api/payments/create-order',
+        'https://servicebackend-kd4t.onrender.com/api/payments/create-order',
         options: Options(method: 'POST', headers: headers),
         data: data,
       );
@@ -158,11 +223,71 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
           'description': orderData['description'],
           'order_id': orderData['order']['id'],
           'prefill': orderData['prefill'],
+          'theme': {'color': '#2196F3'},
+          'retry': {'enabled': true, 'max_count': 3},
+          'send_sms_hash': true,
+          'remember_customer': true,
+          'timeout': 300, // 5 minutes
         };
 
-        _razorpay.open(options);
+        if (!kIsWeb) {
+          _razorpay.open(options);
+        } else {
+          // For web platform, use Razorpay's standard checkout URL
+          final baseUrl = 'https://checkout.razorpay.com/v1/checkout.js';
+          final checkoutUrl =
+              Uri.parse(baseUrl)
+                  .replace(
+                    queryParameters: {
+                      'key': orderData['key'],
+                      'amount': orderData['amount'].toString(),
+                      'currency': orderData['currency'],
+                      'name': orderData['name'],
+                      'description': orderData['description'],
+                      'order_id': orderData['order']['id'],
+                      'callback_url':
+                          'https://servicebackend-kd4t.onrender.com/api/payments/verify-payment',
+                      'prefill': json.encode(orderData['prefill']),
+                    },
+                  )
+                  .toString();
+
+          // Load the URL before showing the dialog
+          await _webViewController.loadRequest(Uri.parse(checkoutUrl));
+
+          // Show WebView in a dialog
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return Dialog(
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.8,
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                      Expanded(
+                        child: WebViewWidget(controller: _webViewController),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        }
       }
     } catch (e) {
+      print('Error in _handleSubscription: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error creating order: $e')));
@@ -171,6 +296,9 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // Remove this line as it's causing the error
+    // WebViewWidget(controller: _webViewController);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
@@ -197,7 +325,7 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // Service Type with Premium Badge
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -213,7 +341,10 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
               if (widget.isPremium)
                 Container(
                   margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).primaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -230,7 +361,7 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
             ],
           ),
           const SizedBox(height: 8),
-          
+
           // First Post Free Badge
           if (widget.isPremium)
             Container(
@@ -371,3 +502,5 @@ class _ServiceSubscriptionSheetState extends State<ServiceSubscriptionSheet> {
     );
   }
 }
+
+// In your build method, update the WebView widget
