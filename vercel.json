@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "build/web/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/build/web/(.*)",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" },
+      "dest": "/build/web/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/build/web/favicon.ico"
+    },
+    {
+      "src": "/icons/(.*)",
+      "dest": "/build/web/icons/$1"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/build/web/manifest.json"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/build/web/index.html"
+    }
+  ]
+}
